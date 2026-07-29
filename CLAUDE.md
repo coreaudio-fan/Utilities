@@ -61,7 +61,7 @@ All build settings live in `.xcconfig` files. The `XCBuildConfiguration` entries
 
 When changing a build setting, edit the appropriate `.xcconfig` rather than Xcode's "Build Settings" tab — anything set in the UI gets written back as an inline override in `project.pbxproj` and silently shadows the xcconfig value.
 
-`DEVELOPMENT_TEAM = 56N2U6EQZQ` is currently set both inline in the two project-level `XCBuildConfiguration`s **and** in `Project-Common.xcconfig`. The values agree, so nothing is broken, but the inline copy is exactly the shadowing this convention exists to prevent and should not be treated as the source of truth.
+`DEVELOPMENT_TEAM` was previously set inline in the two project-level `XCBuildConfiguration`s as well as in `Project-Common.xcconfig`. The inline copies have been removed, so every `buildSettings` dict in `project.pbxproj` is now empty and the xcconfigs are the sole source of truth. If an inline override reappears there, Xcode's UI put it back.
 
 Settings worth knowing about:
 
