@@ -34,6 +34,12 @@ Two targets. Target names are generic and match the `Config/` filenames rather t
 
 Current contents: `Source/Weak.swift` is the only utility. `Documentation.docc/` is a DocC catalog, still holding the untouched Xcode template with `@START_MENU_TOKEN@` placeholders, while `RUN_DOCUMENTATION_COMPILER = YES`.
 
+### Languages
+
+The framework is configured to host **C, C++, Objective-C, and Swift**, not Swift alone. `Source/` currently contains only `Weak.swift`, but the build settings are deliberately broader than its present contents: `GCC_C_LANGUAGE_STANDARD = gnu23`, `CLANG_CXX_LANGUAGE_STANDARD = gnu++23`, a large Objective-C and C++ warning and static-analyzer allowlist, `MODULE_VERIFIER_SUPPORTED_LANGUAGES = c c++`, DocC C++ and Objective-C extraction, and a Headers build phase on the `Framework` target.
+
+Do not read the current file list as the project's language scope, and do not prune C, C++, or Objective-C settings as dead weight. That includes `driverkit` in `SUPPORTED_PLATFORMS`, which is reachable precisely because DriverKit builds C++.
+
 ### Adding files
 
 `Source/`, `Tests/`, and `Config/` are `PBXFileSystemSynchronizedRootGroup`s (`objectVersion = 77`). Files are picked up by folder membership — **drop a file into the directory and it joins the target with no `project.pbxproj` edit**. This is also why XCODE-1 (navigator mirrors the filesystem) holds by construction here; there is no way to create a virtual group that diverges from disk.
@@ -62,8 +68,8 @@ Settings worth knowing about:
 - `SWIFT_TREAT_WARNINGS_AS_ERRORS = YES` and `GCC_TREAT_WARNINGS_AS_ERRORS = YES` — any new warning fails the build.
 - `SWIFT_STRICT_CONCURRENCY = complete` with `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`.
 - `SWIFT_DISABLE_SAFETY_CHECKS = NO` in `Project-Common.xcconfig`, stated explicitly even though `NO` is Xcode's default. Setting it to `YES` maps to `-remove-runtime-asserts`, which strips runtime asserts in optimized builds; it was `YES` here unintentionally. Leave it `NO` so bounds checks, overflow traps, and preconditions survive in Release.
-- `SUPPORTED_PLATFORMS` lists every Apple platform including `driverkit`, which has no Swift support and cannot yield a usable slice.
-- `BUILD_LIBRARY_FOR_DISTRIBUTION = YES`, which is not required by the intended consumption model below.
+- `SUPPORTED_PLATFORMS` covers every Apple platform including `driverkit`, with `DRIVERKIT_DEPLOYMENT_TARGET` set alongside it. This is deliberate — see Languages above before assuming any of it is prunable.
+- `BUILD_LIBRARY_FOR_DISTRIBUTION = YES` — library evolution and a stable ABI, with a `.swiftinterface` emitted. Deliberate; do not assume the Xcode-subproject model below makes it redundant.
 
 ## Testing
 
