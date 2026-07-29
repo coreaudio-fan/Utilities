@@ -1,4 +1,4 @@
-#include "Common.xcconfig"
+#include "Project-Common.xcconfig"
 
 // Architectures
 ONLY_ACTIVE_ARCH = YES
@@ -24,7 +24,3 @@ SWIFT_OPTIMIZATION_LEVEL = -Onone
 
 // Swift Compiler - Custom Flags
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG
-
-
-GCC_DEBUG_SYMBOLS = YES
-MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE

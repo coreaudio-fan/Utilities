@@ -155,6 +155,7 @@
 				TargetAttributes = {
 					2D5D099A300AFF0700B990E5 = {
 						CreatedOnToolsVersion = 26.6;
+						LastSwiftMigration = 2660;
 					};
 					2D5D09A5300AFF0700B990E5 = {
 						CreatedOnToolsVersion = 26.6;
@@ -227,23 +228,25 @@
 		2D5D09AD300AFF0700B990E5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = 2D5D09BE300B202D00B990E5 /* Config */;
-			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			baseConfigurationReferenceRelativePath = "Project-Debug.xcconfig";
 			buildSettings = {
+				DEVELOPMENT_TEAM = 56N2U6EQZQ;
 			};
 			name = Debug;
 		};
 		2D5D09AE300AFF0700B990E5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = 2D5D09BE300B202D00B990E5 /* Config */;
-			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			baseConfigurationReferenceRelativePath = "Project-Release.xcconfig";
 			buildSettings = {
+				DEVELOPMENT_TEAM = 56N2U6EQZQ;
 			};
 			name = Release;
 		};
 		2D5D09B0300AFF0700B990E5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = 2D5D09BE300B202D00B990E5 /* Config */;
-			baseConfigurationReferenceRelativePath = "Utilities-Debug.xcconfig";
+			baseConfigurationReferenceRelativePath = "Framework-Debug.xcconfig";
 			buildSettings = {
 			};
 			name = Debug;
@@ -251,7 +254,7 @@
 		2D5D09B1300AFF0700B990E5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = 2D5D09BE300B202D00B990E5 /* Config */;
-			baseConfigurationReferenceRelativePath = "Utilities-Release.xcconfig";
+			baseConfigurationReferenceRelativePath = "Framework-Release.xcconfig";
 			buildSettings = {
 			};
 			name = Release;

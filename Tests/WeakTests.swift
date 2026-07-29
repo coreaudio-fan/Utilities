@@ -6,54 +6,30 @@ struct WeakTests {
 	class TestClass {}
 
 	@Test func normalUsage() async throws {
-		//	create an object and put it in an optional
-		var optionalObject1: TestClass? = TestClass()
-		var optionalObject2: TestClass? = TestClass()
+		//	Create a test object and put it in an optional so we can make it go away later
+		var optionalObject: TestClass? = TestClass()
 
-		//	create a Set to put the result in
-		//	this actually tests the main reason Weak exists while we are at it
-		var weakObjects: Set<Weak<TestClass>> = []
-		
-		//	lock down a strong reference
-		if let object1 = optionalObject1, let object2 = optionalObject2 {
-			//	the only safe way to make a weak reference is by using a strong reference
-			weakObjects.insert(Weak(object1))
-			weakObjects.insert(Weak(object2))
+		//	Make a Weak that refers to the test object for later testing.
+		let weakObject = Weak(optionalObject!)
 
-			//	make sure what we put in there, is in there
-			#expect(weakObjects.count == 2)
-			for weakObject in weakObjects {
-				#expect(weakObject.value != nil)
-				if weakObject.id == ObjectIdentifier(object1) {
-					#expect(weakObject.value === object1)
-					#expect(weakObject.value !== object2)
-				}
-				else if weakObject.id == ObjectIdentifier(object2) {
-					#expect(weakObject.value !== object1)
-					#expect(weakObject.value === object2)
-				}
-				else {
-					Issue.record("Weak object doesn't match anything", severity: .error)
-					return
-				}
-			}
-		}
-		else {
-			Issue.record("No object to test against", severity: .error)
-			return
-		}
-		
-		//	set the first optional to nil to make it let go of the object
-        optionalObject1 = nil
-        optionalObject2 = nil
+		//	Create a Set whose elements hold weak references to TestClass.
+		let weakObjects: Set<Weak<TestClass>> = [weakObject]
 
-		//
-		
-		//	fetch the Weak and make sure it contains nil
-//		let weakObject = set.first!
-//		#expect(weakObject.value == nil)
+		//	Go through what is in the set and make sure it just has our one test object in it.
+		#expect(weakObjects.count == 1)
+		#expect(weakObjects.first?.value != nil)
+		#expect(weakObjects.first == weakObject)
+		#expect(weakObjects.first?.value === optionalObject!)
+
+		//	make the test object go away by setting the optional to nil
+        optionalObject = nil
+
+		//	make sure what is in the set is correct
+		#expect(weakObjects.count == 1)
+		#expect(weakObjects.first?.value == nil)
+		#expect(weakObjects.first == weakObject)
     }
-	
+
 	@Test func badUsage() async throws {
 		//	Making a Weak requires a strong reference to an object which nil is not
 //		var initializeWithNil = Weak<TestClass>(nil)
