@@ -1,8 +1,8 @@
-// Architectures
+//	Architectures
 SDKROOT = auto
 SUPPORTED_PLATFORMS = xrsimulator xros watchsimulator watchos macosx iphonesimulator iphoneos driverkit appletvsimulator appletvos
 
-// Deployment
+//	Deployment
 DRIVERKIT_DEPLOYMENT_TARGET = 25.0
 IPHONEOS_DEPLOYMENT_TARGET = 26.0
 MACOSX_DEPLOYMENT_TARGET = 26.0
@@ -11,11 +11,11 @@ TVOS_DEPLOYMENT_TARGET = 26.0
 WATCHOS_DEPLOYMENT_TARGET = 26.0
 XROS_DEPLOYMENT_TARGET = 26.0
 
-// Localization
+//	Localization
 STRING_CATALOG_GENERATE_SYMBOLS = NO
 SWIFT_EMIT_LOC_STRINGS = NO
 
-// Packaging
+//	Packaging
 GENERATE_INFOPLIST_FILE = YES
 PRODUCT_BUNDLE_IDENTIFIER = coreaudio-fan.Utilities.Tests
 PRODUCT_NAME = Utilities Tests
