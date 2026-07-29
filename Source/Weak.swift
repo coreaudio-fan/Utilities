@@ -3,11 +3,11 @@ public struct Weak<T: AnyObject>: Equatable, Hashable {
 	///	The weak reference being stored
 	public weak let value: T?
 
-	///	The ObjectIdentifier of referenced object is used for testing equality and hashing so as to preserve as much of
+	///	The ObjectIdentifier of referenced object is used for testing equality and hashing so as to preserve as much
 	///	of the functionality of the wrapper as possible even when the weak reference becomes nil.
 	let id: ObjectIdentifier
 
-	///	The main initializer, note that the strong reference to value is guranteed to exist while the function runs
+	///	The main initializer, note that the strong reference to value is guaranteed to exist while the function runs
 	///	making it the only time we can capture the ObjectIdentifier
 	public init(_ value: T) {
 		self.value = value
@@ -23,5 +23,5 @@ public struct Weak<T: AnyObject>: Equatable, Hashable {
 	}
 }
 
-/// Weak<T> conforms to Sendable iff T does
+///	Weak<T> conforms to Sendable iff T does
 extension Weak: Sendable where T: Sendable {}

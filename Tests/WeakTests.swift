@@ -22,16 +22,16 @@ struct WeakTests {
 		#expect(weakObjects.first?.value === optionalObject!)
 
 		//	make the test object go away by setting the optional to nil
-        optionalObject = nil
+		optionalObject = nil
 
 		//	make sure what is in the set is correct
 		#expect(weakObjects.count == 1)
 		#expect(weakObjects.first?.value == nil)
 		#expect(weakObjects.first == weakObject)
-    }
+	}
 
 	@Test func badUsage() async throws {
 		//	Making a Weak requires a strong reference to an object which nil is not
-//		var initializeWithNil = Weak<TestClass>(nil)
+//	var initializeWithNil = Weak<TestClass>(nil)
 	}
 }
