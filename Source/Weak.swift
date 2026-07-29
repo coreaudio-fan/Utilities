@@ -11,7 +11,7 @@ public struct Weak<T: AnyObject>: Equatable, Hashable {
 	///	making it the only time we can capture the ObjectIdentifier
 	public init(_ value: T) {
 		self.value = value
-		id = ObjectIdentifier(value)
+		self.id = ObjectIdentifier(value)
 	}
 
 	public func hash(into hasher: inout Hasher) {
