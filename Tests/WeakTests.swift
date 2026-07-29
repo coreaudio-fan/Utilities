@@ -1,5 +1,5 @@
 import Testing
-@testable import Utilities
+import Utilities
 
 struct WeakTests {
 	//	An empty class that can be instantiated and destroyed
