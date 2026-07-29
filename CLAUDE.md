@@ -77,7 +77,20 @@ The suite uses **swift-testing**, not XCTest — `import Testing`, `struct` suit
 
 The target is still a `com.apple.product-type.bundle.unit-test` bundle, so the runner reports results in XCTest-style output.
 
-`badUsage()` in `Tests/WeakTests.swift` has no executable body — its content is entirely commented out. It can never fail, and it accounts for one of the two passing tests. What it documents (that `Weak<T>(nil)` does not compile) is a compile-time property swift-testing cannot express.
+### Suites, and the import convention
+
+| File | Suite | Purpose |
+|---|---|---|
+| `Tests/WeakTests.swift` | `WeakTests` | Behaviour of `Weak` — equality, hashing, container semantics, referent lifetime |
+| `Tests/WeakAPITests.swift` | `WeakAPITests` | That the published API is reachable and usable from another module |
+
+**Both use a plain `import Utilities`, and that is deliberate.** `@testable import` makes internal declarations visible, which defeats any check that the public surface is genuinely public: `Weak` was once `public` with an internal `init(_:)` and an internal `value`, and the behaviour tests passed anyway because `@testable` bypassed access control. So tests are written as client code by default. `@testable` is a per-file exception, permitted only where a test cannot otherwise reach what it needs, and the file using it should state why. Nothing needs it today.
+
+Access control is enforced at compile time, so an API regression **fails the build, not a test** — which is the point of doing it this way, not a shortcoming of it. A compile-time failure is unavoidable, arrives before any test runs, and cannot be skipped or forgotten. Prefer this kind of enforcement wherever the toolchain can provide it.
+
+Reverting `public init(_:)` to `init(_:)` yields `'Weak<T>' initializer is inaccessible due to 'internal' protection level` at every construction site. Expect those errors in *both* test files, since both are clients; `WeakAPITests` is where the intent is documented and where the whole published surface is covered deliberately, so that coverage cannot drift as the behaviour tests change.
+
+`badUsage()` in `Tests/WeakTests.swift` has no executable body — its content is entirely commented out. It can never fail, and is kept deliberately as a documentation stub. What it documents (that `Weak<T>(nil)` does not compile) is a compile-time property swift-testing cannot express.
 
 ## Consuming the framework
 
