@@ -32,7 +32,7 @@ Two targets. Target names are generic and match the `Config/` filenames rather t
 | `Framework` | `Utilities.framework` | The shared code. Builds from `Source/` |
 | `Tests` | `Utilities Tests.xctest` | Depends on and links `Framework`. Builds from `Tests/` |
 
-Current contents: `Source/Weak.swift` is the only utility. `Documentation.docc/` is a DocC catalog, still holding the untouched Xcode template with `@START_MENU_TOKEN@` placeholders, while `RUN_DOCUMENTATION_COMPILER = YES`.
+Current contents: `Source/Weak.swift` (a hashable weak-reference wrapper) and `Source/SerialNumber.swift` (unique serial numbers: the `SerialNumberValue` generation protocol, the `SerialNumber` wrapper, and stock conformances for `UInt64` and Foundation's `UUID` — the latter under `#if canImport(Foundation)`, because the DriverKit SDK has no Foundation and `driverkit` is deliberately supported). `Documentation.docc/` is the DocC catalog, kept deliberately thin — symbols are documented at their declarations, and the catalog carries only what source comments cannot express, such as the module landing page.
 
 ### Languages
 
@@ -68,6 +68,7 @@ Settings worth knowing about:
 - `SWIFT_TREAT_WARNINGS_AS_ERRORS = YES` and `GCC_TREAT_WARNINGS_AS_ERRORS = YES` — any new warning fails the build.
 - `SWIFT_STRICT_CONCURRENCY = complete` with `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`.
 - `SWIFT_DISABLE_SAFETY_CHECKS = NO` in `Project-Common.xcconfig`, stated explicitly even though `NO` is Xcode's default. Setting it to `YES` maps to `-remove-runtime-asserts`, which strips runtime asserts in optimized builds; it was `YES` here unintentionally. Leave it `NO` so bounds checks, overflow traps, and preconditions survive in Release.
+- `OTHER_DOCC_FLAGS = --warnings-as-errors --analyze` — DocC runs inside every build (`RUN_DOCUMENTATION_COMPILER = YES`), so documentation warnings fail the build and symbol links in doc comments are load-bearing; `--analyze` additionally surfaces note-level findings, which report but cannot fail.
 - `SUPPORTED_PLATFORMS` covers every Apple platform including `driverkit`, with `DRIVERKIT_DEPLOYMENT_TARGET` set alongside it. This is deliberate — see Languages above before assuming any of it is prunable.
 - `BUILD_LIBRARY_FOR_DISTRIBUTION = YES` — library evolution and a stable ABI, with a `.swiftinterface` emitted. Deliberate; do not assume the Xcode-subproject model below makes it redundant.
 
@@ -82,9 +83,11 @@ The target is still a `com.apple.product-type.bundle.unit-test` bundle, so the r
 | File | Suite | Purpose |
 |---|---|---|
 | `Tests/WeakTests.swift` | `WeakTests` | Behaviour of `Weak` — equality, hashing, container semantics, referent lifetime |
-| `Tests/WeakAPITests.swift` | `WeakAPITests` | That the published API is reachable and usable from another module |
+| `Tests/WeakAPITests.swift` | `WeakAPITests` | That `Weak`'s published API is reachable and usable from another module |
+| `Tests/SerialNumberTests.swift` | `SerialNumberTests` | Behaviour of `SerialNumber` — uniqueness (serial and concurrent), copy propagation, creation order, custom conformers |
+| `Tests/SerialNumberAPITests.swift` | `SerialNumberAPITests` | That `SerialNumber`'s and `SerialNumberValue`'s published API is reachable from another module |
 
-**Both use a plain `import Utilities`, and that is deliberate.** `@testable import` makes internal declarations visible, which defeats any check that the public surface is genuinely public: `Weak` was once `public` with an internal `init(_:)` and an internal `value`, and the behaviour tests passed anyway because `@testable` bypassed access control. So tests are written as client code by default. `@testable` is a per-file exception, permitted only where a test cannot otherwise reach what it needs, and the file using it should state why. Nothing needs it today.
+**All use a plain `import Utilities`, and that is deliberate.** `@testable import` makes internal declarations visible, which defeats any check that the public surface is genuinely public: `Weak` was once `public` with an internal `init(_:)` and an internal `value`, and the behaviour tests passed anyway because `@testable` bypassed access control. So tests are written as client code by default. `@testable` is a per-file exception, permitted only where a test cannot otherwise reach what it needs, and the file using it should state why. Nothing needs it today.
 
 Access control is enforced at compile time, so an API regression **fails the build, not a test** — which is the point of doing it this way, not a shortcoming of it. A compile-time failure is unavoidable, arrives before any test runs, and cannot be skipped or forgotten. Prefer this kind of enforcement wherever the toolchain can provide it.
 
@@ -108,6 +111,6 @@ Developed against Xcode 26.6 / Swift 6.3.3.
 
 ## Notes on `Weak`
 
-`Weak<T: AnyObject>` wraps a weak reference so it can live in a `Set` or dictionary. It stores the `weak let` reference alongside an `ObjectIdentifier` captured during `init` — the one moment a strong reference is guaranteed to exist. Equality and hashing use only that identifier, so a `Weak` keeps its identity and stays findable in a container after its referent deallocates. `Sendable` is conditional on `T: Sendable`.
+`Weak<T: AnyObject>` wraps a weak reference so it can live in a `Set` or dictionary. Equality and hashing use a `SerialNumber<UInt64>` minted during `init`, so every wrapper is a distinct entry with one stable identity: copies of a wrapper are equal, independently created wrappers never are — even around the same object — and identity survives the referent's deallocation. The intended workflow is registration-style: insert a wrapper, keep a copy, and use it later to find or remove the entry; sweep dead entries (`value == nil`) on whatever schedule suits the container's owner. `Sendable` is conditional on `T: Sendable`.
 
-**Accepted caveat:** because the identifier outlives the referent and object addresses get reused, a `Weak` wrapping a brand-new object can compare equal to — and hash the same as — a stale `Weak` whose referent is gone. Inserting the new wrapper into a `Set` that holds the stale one silently no-ops. This is a deliberate tradeoff, not a bug: stable-after-death identity and reuse-immunity cannot coexist without breaking same-object deduplication. Do not "fix" it without revisiting that decision.
+**History:** `Weak` originally hashed an `ObjectIdentifier` captured at `init`, which deduplicated same-object wrappers but let a wrapper around a newly allocated object collide with a stale wrapper whose referent's address had been recycled. Serial numbers make that collision impossible by construction, at the deliberate price of same-object deduplication — `Weak(x) == Weak(x)` is now `false`.

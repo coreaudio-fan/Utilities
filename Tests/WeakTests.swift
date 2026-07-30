@@ -54,22 +54,39 @@ struct WeakTests {
 		#expect(weakObjects.count == 2)
 	}
 
-	@Test func sameObjectDeduplicates() async throws {
-		//	Two wrappers around one object are equal, so a Set has to collapse them into a single element
+	@Test func sameObjectYieldsDistinctWrappers() async throws {
+		//	Independently created wrappers are distinct entries even around one object; only copies
+		//	are equal, so a Set collapses copies and keeps separate creations
 		let object = TestClass()
 		let firstWrapper = Weak(object)
 		let secondWrapper = Weak(object)
+		let copy = firstWrapper
 
-		#expect(firstWrapper == secondWrapper)
-		#expect(firstWrapper.hashValue == secondWrapper.hashValue)
+		#expect(firstWrapper != secondWrapper)
+		#expect(firstWrapper == copy)
+		#expect(firstWrapper.hashValue == copy.hashValue)
 
-		let weakObjects: Set<Weak<TestClass>> = [firstWrapper, secondWrapper]
-		#expect(weakObjects.count == 1)
+		let weakObjects: Set<Weak<TestClass>> = [firstWrapper, secondWrapper, copy]
+		#expect(weakObjects.count == 2)
+	}
+
+	@Test func addressReuseCannotCollide() async throws {
+		//	Under ObjectIdentifier equality, a recycled allocation could make a fresh wrapper equal
+		//	to a stale one whose referent was gone; serial numbers never repeat, so the collision is
+		//	impossible by construction whatever addresses the runtime hands out
+		var optionalObject: TestClass? = TestClass()
+		let staleWrapper = Weak(optionalObject!)
+
+		optionalObject = nil
+
+		let replacementWrapper = Weak(TestClass())
+
+		#expect(staleWrapper != replacementWrapper)
 	}
 
 	@Test func staleWrapperRemainsFindable() async throws {
-		//	Identity is captured at init, so a wrapper stays locatable in a Set after its referent is gone.
-		//	This is the mechanism behind the address reuse caveat documented on Weak.
+		//	Identity is minted at init and propagated by copying, so the inserted wrapper stays
+		//	locatable through a kept copy after its referent is gone
 		var optionalObject: TestClass? = TestClass()
 		let weakObject = Weak(optionalObject!)
 		let weakObjects: Set<Weak<TestClass>> = [weakObject]

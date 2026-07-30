@@ -53,25 +53,28 @@ struct WeakAPITests {
 	}
 
 	@Test func clientCanUseEquatable() async throws {
-		//	Reaches the public == operator
+		//	Reaches the public == operator; only copies of a wrapper are equal
 		let referent = Referent()
+		let wrapper = requireEquatable(Weak(referent))
+		let copy = wrapper
 
-		#expect(requireEquatable(Weak(referent)) == Weak(referent))
-		#expect(Weak(referent) != Weak(Referent()))
+		#expect(wrapper == copy)
+		#expect(wrapper != Weak(referent))
 	}
 
 	@Test func clientCanUseHashable() async throws {
 		let referent = Referent()
 		let wrapper = requireHashable(Weak(referent))
+		let copy = wrapper
 
 		//	Equal wrappers must agree on hashValue, which is the contract a client depends on
-		#expect(wrapper.hashValue == Weak(referent).hashValue)
+		#expect(wrapper.hashValue == copy.hashValue)
 
 		//	Reaches hash(into:) directly rather than through the synthesized hashValue
 		var firstHasher = Hasher()
 		var secondHasher = Hasher()
 		wrapper.hash(into: &firstHasher)
-		Weak(referent).hash(into: &secondHasher)
+		copy.hash(into: &secondHasher)
 
 		#expect(firstHasher.finalize() == secondHasher.finalize())
 	}
@@ -85,17 +88,17 @@ struct WeakAPITests {
 	}
 
 	@Test func clientCanStoreInSetAndDictionary() async throws {
-		//	The containers Weak exists to serve, which need both conformances published together
-		let firstReferent = Referent()
-		let secondReferent = Referent()
+		//	The containers Weak exists to serve; lookup goes through a kept copy of the wrapper
+		let firstEntry = Weak(Referent())
+		let secondEntry = Weak(Referent())
 
-		let wrappers: Set<Weak<Referent>> = [Weak(firstReferent), Weak(secondReferent), Weak(firstReferent)]
+		let wrappers: Set<Weak<Referent>> = [firstEntry, secondEntry, firstEntry]
 
 		#expect(wrappers.count == 2)
-		#expect(wrappers.contains(Weak(firstReferent)))
+		#expect(wrappers.contains(firstEntry))
 
-		let labels: [Weak<Referent>: String] = [Weak(firstReferent): "first", Weak(secondReferent): "second"]
+		let labels: [Weak<Referent>: String] = [firstEntry: "first", secondEntry: "second"]
 
-		#expect(labels[Weak(firstReferent)] == "first")
+		#expect(labels[firstEntry] == "first")
 	}
 }
