@@ -1,4 +1,4 @@
-//	These tests exercise SerialNumber and SerialNumberValue exactly as another module sees
+//	These tests exercise SerialNumber and SerialNumberFactory exactly as another module sees
 //	them, through a plain import.
 //
 //	Never add @testable to this file. It would make every internal declaration visible and silently
@@ -14,7 +14,7 @@ import Utilities
 
 struct SerialNumberAPITests {
 	//	A client-side conformance, proving the protocol and its requirement are published
-	struct ClientValue: SerialNumberValue, Equatable {
+	struct ClientValue: SerialNumberFactory, Equatable {
 		let raw: UInt64
 
 		static func makeSerialNumber() -> ClientValue {
@@ -57,7 +57,7 @@ struct SerialNumberAPITests {
 	}
 
 	@Test func clientCanConformOwnType() async throws {
-		//	Compiles only while SerialNumberValue and its requirement are public
+		//	Compiles only while SerialNumberFactory and its requirement are public
 		let serial = SerialNumber<ClientValue>()
 
 		#expect(serial.value.raw != 0)

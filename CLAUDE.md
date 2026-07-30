@@ -32,7 +32,7 @@ Two targets. Target names are generic and match the `Config/` filenames rather t
 | `Framework` | `Utilities.framework` | The shared code. Builds from `Source/` |
 | `Tests` | `Utilities Tests.xctest` | Depends on and links `Framework`. Builds from `Tests/` |
 
-Current contents: `Source/SerialNumber.swift` (unique serial numbers: the `SerialNumberValue` generation protocol, the `SerialNumber` wrapper, and stock conformances for `UInt64` and Foundation's `UUID` — the latter under `#if canImport(Foundation)`, because the DriverKit SDK has no Foundation and `driverkit` is deliberately supported). `Documentation.docc/` is the DocC catalog, kept deliberately thin — symbols are documented at their declarations, and the catalog carries only what source comments cannot express, such as the module landing page.
+Current contents: `Source/SerialNumber.swift` (unique serial numbers: the `SerialNumberFactory` generation protocol, the `SerialNumber` wrapper, and stock conformances for `UInt64` and Foundation's `UUID` — the latter under `#if canImport(Foundation)`, because the DriverKit SDK has no Foundation and `driverkit` is deliberately supported). `Documentation.docc/` is the DocC catalog, kept deliberately thin — symbols are documented at their declarations, and the catalog carries only what source comments cannot express, such as the module landing page.
 
 ### Languages
 
@@ -83,7 +83,7 @@ The target is still a `com.apple.product-type.bundle.unit-test` bundle, so the r
 | File | Suite | Purpose |
 |---|---|---|
 | `Tests/SerialNumberTests.swift` | `SerialNumberTests` | Behaviour of `SerialNumber` — uniqueness (serial and concurrent), copy propagation, creation order, custom conformers |
-| `Tests/SerialNumberAPITests.swift` | `SerialNumberAPITests` | That `SerialNumber`'s and `SerialNumberValue`'s published API is reachable from another module |
+| `Tests/SerialNumberAPITests.swift` | `SerialNumberAPITests` | That `SerialNumber`'s and `SerialNumberFactory`'s published API is reachable from another module |
 
 **All use a plain `import Utilities`, and that is deliberate.** `@testable import` makes internal declarations visible, which defeats any check that the public surface is genuinely public: the since-removed `Weak` type was once `public` with an internal initializer and referent, and its behaviour tests passed anyway because `@testable` bypassed access control. So tests are written as client code by default. `@testable` is a per-file exception, permitted only where a test cannot otherwise reach what it needs, and the file using it should state why. Nothing needs it today.
 

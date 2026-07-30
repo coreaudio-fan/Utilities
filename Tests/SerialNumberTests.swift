@@ -3,10 +3,10 @@ import Testing
 import Utilities
 
 struct SerialNumberTests {
-	//	Conforms only to SerialNumberValue. Comparing two SerialNumber<OpaqueValue>s with ==
+	//	Conforms only to SerialNumberFactory. Comparing two SerialNumber<OpaqueValue>s with ==
 	//	is a compile error ("requires that 'OpaqueValue' conform to 'Equatable'"), so the gating of
 	//	capabilities is enforced at compile time and has no runtime test.
-	struct OpaqueValue: SerialNumberValue {
+	struct OpaqueValue: SerialNumberFactory {
 		static func makeSerialNumber() -> OpaqueValue {
 			OpaqueValue()
 		}
