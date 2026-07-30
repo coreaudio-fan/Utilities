@@ -8,18 +8,18 @@ import Synchronization
 ///	A conformance guarantees that no two calls to ``makeSerialNumber()`` in a process return the
 ///	same value — by construction, like `UInt64`'s atomic counter, or statistically, like `UUID`'s
 ///	random draw — and owns whatever state its scheme takes.
-public protocol SerialNumberValue {
+public protocol SerialNumberFactory {
 	///	Returns a value that has never been returned before.
 	static func makeSerialNumber() -> Self
 }
 
 ///	A unique serial number, captured at initialization and propagated by copying.
 ///
-///	Each ``init()`` takes a fresh value from `T`'s ``SerialNumberValue/makeSerialNumber()``, so no
+///	Each ``init()`` takes a fresh value from `T`'s ``SerialNumberFactory/makeSerialNumber()``, so no
 ///	two independently created serial numbers are alike; copies share their original's value. The
 ///	wrapper is `Equatable`, `Hashable`, `Comparable`, `Sendable`, and `CustomStringConvertible`
 ///	exactly when `T` is. For `UInt64`, comparison order is creation order.
-public struct SerialNumber<T: SerialNumberValue> {
+public struct SerialNumber<T: SerialNumberFactory> {
 	///	The captured value.
 	public let value: T
 
@@ -49,7 +49,7 @@ extension SerialNumber: CustomStringConvertible where T: CustomStringConvertible
 	}
 }
 
-extension UInt64: SerialNumberValue {
+extension UInt64: SerialNumberFactory {
 	private static let serialNumberCounter = Atomic<UInt64>(0)
 
 	///	Returns the next value of a strictly increasing counter, starting at 1.
@@ -61,7 +61,7 @@ extension UInt64: SerialNumberValue {
 //	The DriverKit SDK has no Foundation, and driverkit is deliberately in SUPPORTED_PLATFORMS, so
 //	the UUID conformance exists exactly where Foundation does.
 #if canImport(Foundation)
-extension UUID: SerialNumberValue {
+extension UUID: SerialNumberFactory {
 	///	Returns a freshly drawn random (version 4) UUID.
 	public static func makeSerialNumber() -> UUID {
 		UUID()

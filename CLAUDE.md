@@ -32,11 +32,11 @@ Two targets. Target names are generic and match the `Config/` filenames rather t
 | `Framework` | `Utilities.framework` | The shared code. Builds from `Source/` |
 | `Tests` | `Utilities Tests.xctest` | Depends on and links `Framework`. Builds from `Tests/` |
 
-Current contents: `Source/Weak.swift` (a hashable weak-reference wrapper) and `Source/SerialNumber.swift` (unique serial numbers: the `SerialNumberValue` generation protocol, the `SerialNumber` wrapper, and stock conformances for `UInt64` and Foundation's `UUID` — the latter under `#if canImport(Foundation)`, because the DriverKit SDK has no Foundation and `driverkit` is deliberately supported). `Documentation.docc/` is the DocC catalog, kept deliberately thin — symbols are documented at their declarations, and the catalog carries only what source comments cannot express, such as the module landing page.
+Current contents: `Source/SerialNumber.swift` (unique serial numbers: the `SerialNumberFactory` generation protocol, the `SerialNumber` wrapper, and stock conformances for `UInt64` and Foundation's `UUID` — the latter under `#if canImport(Foundation)`, because the DriverKit SDK has no Foundation and `driverkit` is deliberately supported). `Documentation.docc/` is the DocC catalog, kept deliberately thin — symbols are documented at their declarations, and the catalog carries only what source comments cannot express, such as the module landing page.
 
 ### Languages
 
-The framework is configured to host **C, C++, Objective-C, and Swift**, not Swift alone. `Source/` currently contains only `Weak.swift`, but the build settings are deliberately broader than its present contents: `GCC_C_LANGUAGE_STANDARD = gnu23`, `CLANG_CXX_LANGUAGE_STANDARD = gnu++23`, a large Objective-C and C++ warning and static-analyzer allowlist, `MODULE_VERIFIER_SUPPORTED_LANGUAGES = c c++`, DocC C++ and Objective-C extraction, and a Headers build phase on the `Framework` target.
+The framework is configured to host **C, C++, Objective-C, and Swift**, not Swift alone. `Source/` currently contains only Swift, but the build settings are deliberately broader than its present contents: `GCC_C_LANGUAGE_STANDARD = gnu23`, `CLANG_CXX_LANGUAGE_STANDARD = gnu++23`, a large Objective-C and C++ warning and static-analyzer allowlist, `MODULE_VERIFIER_SUPPORTED_LANGUAGES = c c++`, DocC C++ and Objective-C extraction, and a Headers build phase on the `Framework` target.
 
 Do not read the current file list as the project's language scope, and do not prune C, C++, or Objective-C settings as dead weight. That includes `driverkit` in `SUPPORTED_PLATFORMS`, which is reachable precisely because DriverKit builds C++.
 
@@ -82,35 +82,25 @@ The target is still a `com.apple.product-type.bundle.unit-test` bundle, so the r
 
 | File | Suite | Purpose |
 |---|---|---|
-| `Tests/WeakTests.swift` | `WeakTests` | Behaviour of `Weak` — equality, hashing, container semantics, referent lifetime |
-| `Tests/WeakAPITests.swift` | `WeakAPITests` | That `Weak`'s published API is reachable and usable from another module |
 | `Tests/SerialNumberTests.swift` | `SerialNumberTests` | Behaviour of `SerialNumber` — uniqueness (serial and concurrent), copy propagation, creation order, custom conformers |
-| `Tests/SerialNumberAPITests.swift` | `SerialNumberAPITests` | That `SerialNumber`'s and `SerialNumberValue`'s published API is reachable from another module |
+| `Tests/SerialNumberAPITests.swift` | `SerialNumberAPITests` | That `SerialNumber`'s and `SerialNumberFactory`'s published API is reachable from another module |
 
-**All use a plain `import Utilities`, and that is deliberate.** `@testable import` makes internal declarations visible, which defeats any check that the public surface is genuinely public: `Weak` was once `public` with an internal `init(_:)` and an internal `value`, and the behaviour tests passed anyway because `@testable` bypassed access control. So tests are written as client code by default. `@testable` is a per-file exception, permitted only where a test cannot otherwise reach what it needs, and the file using it should state why. Nothing needs it today.
+**All use a plain `import Utilities`, and that is deliberate.** `@testable import` makes internal declarations visible, which defeats any check that the public surface is genuinely public: the since-removed `Weak` type was once `public` with an internal initializer and referent, and its behaviour tests passed anyway because `@testable` bypassed access control. So tests are written as client code by default. `@testable` is a per-file exception, permitted only where a test cannot otherwise reach what it needs, and the file using it should state why. Nothing needs it today.
 
 Access control is enforced at compile time, so an API regression **fails the build, not a test** — which is the point of doing it this way, not a shortcoming of it. A compile-time failure is unavoidable, arrives before any test runs, and cannot be skipped or forgotten. Prefer this kind of enforcement wherever the toolchain can provide it.
 
-Reverting `public init(_:)` to `init(_:)` yields `'Weak<T>' initializer is inaccessible due to 'internal' protection level` at every construction site. Expect those errors in *both* test files, since both are clients; `WeakAPITests` is where the intent is documented and where the whole published surface is covered deliberately, so that coverage cannot drift as the behaviour tests change.
-
-`badUsage()` in `Tests/WeakTests.swift` has no executable body — its content is entirely commented out. It can never fail, and is kept deliberately as a documentation stub. What it documents (that `Weak<T>(nil)` does not compile) is a compile-time property swift-testing cannot express.
+Reverting `SerialNumber`'s `public init()` to `init()` yields `'SerialNumber<T>' initializer is inaccessible due to 'internal' protection level` at every construction site. Expect those errors in *both* test files, since both are clients; `SerialNumberAPITests` is where the intent is documented and where the whole published surface is covered deliberately, so that coverage cannot drift as the behaviour tests change.
 
 ## Consuming the framework
 
 The intended model is an **Xcode subproject**: a consumer adds `Utilities.xcodeproj` to its workspace and links the `Utilities.framework` product. There is deliberately no `Package.swift` — build settings stay solely in `Config/*.xcconfig`, which SPM would not honor.
 
-One constraint to know about: **deployment targets are 26.0 on every platform** (DriverKit 25.0), so a consumer must target macOS 26 / iOS 26 or later. Nothing in the current code requires that floor — `weak let` is a compiler requirement, not a runtime one — so it could be lowered if a consumer ever needs it.
-
-`Weak`'s public surface is `init(_:)`, `value`, `==`, and `hash(into:)`. The `id` backing equality is deliberately internal, being an implementation detail of the identity design described below.
+One constraint to know about: **deployment targets are 26.0 on every platform** (DriverKit 25.0), so a consumer must target macOS 26 / iOS 26 or later. Nothing in the current code requires that floor, so it could be lowered if a consumer ever needs it (`Atomic`, the earliest-available dependency, needs macOS 15).
 
 ## Toolchain floor
 
-`Source/Weak.swift` uses `weak let`, which requires **Swift 6.2+** (SE-0481). It will not compile on Xcode 16.x. Note that `SWIFT_VERSION = 6.0` in `Project-Common.xcconfig` is the language *mode*, not the compiler version — it does not lower this floor. SE-0481 adds no runtime requirement, so `weak let` does not constrain the deployment target.
+Developed against Xcode 26.6 / Swift 6.3.3. No current source demands a newer compiler than the `SWIFT_VERSION = 6.0` language mode implies — but note that setting is the language *mode*, not a compiler version, so it would not surface such a demand if one appeared.
 
-Developed against Xcode 26.6 / Swift 6.3.3.
+## History: the removed `Weak` type
 
-## Notes on `Weak`
-
-`Weak<T: AnyObject>` wraps a weak reference so it can live in a `Set` or dictionary. Equality and hashing use a `SerialNumber<UInt64>` minted during `init`, so every wrapper is a distinct entry with one stable identity: copies of a wrapper are equal, independently created wrappers never are — even around the same object — and identity survives the referent's deallocation. The intended workflow is registration-style: insert a wrapper, keep a copy, and use it later to find or remove the entry; sweep dead entries (`value == nil`) on whatever schedule suits the container's owner. `Sendable` is conditional on `T: Sendable`.
-
-**History:** `Weak` originally hashed an `ObjectIdentifier` captured at `init`, which deduplicated same-object wrappers but let a wrapper around a newly allocated object collide with a stale wrapper whose referent's address had been recycled. Serial numbers make that collision impossible by construction, at the deliberate price of same-object deduplication — `Weak(x) == Weak(x)` is now `false`.
+The project once shipped `Weak<T: AnyObject>`, a hashable weak-reference wrapper. Its first design hashed an `ObjectIdentifier` that outlived the referent, so a wrapper around a newly allocated object could collide with a stale wrapper whose referent's address had been recycled; its second design hashed a per-wrapper `SerialNumber<UInt64>`, which ended the collisions at the price of same-object deduplication (`Weak(x) == Weak(x)` became `false`). There was no way to preserve both properties, so the type was removed rather than kept limping. The standing conclusion: **question any use of weak references in contexts that do not natively support them** — a `Hashable` container is exactly such a context.
