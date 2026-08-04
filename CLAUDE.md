@@ -32,7 +32,19 @@ Two targets. Target names are generic and match the `Config/` filenames rather t
 | `Framework` | `Utilities.framework` | The shared code. Builds from `Source/` |
 | `Tests` | `Utilities Tests.xctest` | Depends on and links `Framework`. Builds from `Tests/` |
 
-Current contents: `Source/SerialNumber.swift` (unique serial numbers: the `SerialNumberFactory` generation protocol, the `SerialNumber` wrapper, and stock conformances for `UInt64` and Foundation's `UUID` — the latter under `#if canImport(Foundation)`, because the DriverKit SDK has no Foundation and `driverkit` is deliberately supported). `Documentation.docc/` is the DocC catalog, kept deliberately thin — symbols are documented at their declarations, and the catalog carries only what source comments cannot express, such as the module landing page.
+Current contents: `Source/IDFactory.swift` (see IDFactory below). `Documentation.docc/` is the DocC catalog, kept deliberately thin — symbols are documented at their declarations, and the catalog carries only what source comments cannot express, such as the module landing page.
+
+### IDFactory
+
+`IDFactory<ID>` hands out unique unsigned identifiers from an atomic counter. Identifiers are unique to the **instance** that issued them, so each factory is its own namespace.
+
+Three properties look odd and are each forced rather than chosen. Do not "clean them up" without reading this first.
+
+- **`makeIdentifier()` is six concrete overloads**, one per unsigned width, with identical bodies. `Atomic<Value>` publishes its arithmetic (`add`, `subtract`, `min`, …) only through same-type extensions such as `extension Atomic where Value == UInt64`. A same-type constraint on a type *parameter* eliminates that parameter, so no protocol conformance can reach those methods — constraining `ID` to a marker protocol fails with `requires the types 'ID' and 'Int' be equivalent`. The consequence for callers: an unsupported width is rejected at the `makeIdentifier()` call site rather than at the declaration. Collapsing this to one generic method requires a shim protocol that re-declares each operation *and* bakes in its memory ordering, because orderings cannot be forwarded through a protocol requirement (`ordering argument must be a static method or property of 'AtomicUpdateOrdering'`) without the underscored `@_semantics("atomics.requires_constant_orderings")` attribute.
+- **It is a class, not a struct.** `Atomic` is not copyable, which forces `~Copyable` onto a struct and propagates to every consumer — each sharing site then needs a reference-type box. Noncopyability stops at a reference boundary, so a class shares one counter with no wrapper. The `Sendable` conformance is compiler-checked, not `@unchecked`.
+- **Overflow traps.** `add(_:ordering:)` aborts on overflow rather than wrapping. Wrapping would silently reissue identifiers and break the contract; exhausting the space implies a bug upstream, which is not a condition a caller can act on. This is deliberate, not an oversight, and it is why `SWIFT_DISABLE_SAFETY_CHECKS = NO` matters below.
+
+The generic parameter is also a deliberate learning vehicle for Swift's generics — do not propose collapsing it to a concrete `UInt64` type.
 
 ### Languages
 
@@ -72,6 +84,16 @@ Settings worth knowing about:
 - `SUPPORTED_PLATFORMS` covers every Apple platform including `driverkit`, with `DRIVERKIT_DEPLOYMENT_TARGET` set alongside it. This is deliberate — see Languages above before assuming any of it is prunable.
 - `BUILD_LIBRARY_FOR_DISTRIBUTION = YES` — library evolution and a stable ABI, with a `.swiftinterface` emitted. Deliberate; do not assume the Xcode-subproject model below makes it redundant.
 
+### Writing documentation comments
+
+Because DocC runs inside every build with `--warnings-as-errors`, doc comments are compiled artifacts and a bad one fails the build. What that does and does not protect, all verified against this project:
+
+- **Double backticks are symbol links and are build-enforced.** They must resolve, and resolve *uniquely*. ``makeIdentifier()`` does not: with six overloads it fails with `'makeIdentifier()' is ambiguous at '/Utilities/IDFactory'`. DocC prints a hash suffix per overload (``makeIdentifier()-2fgh1``), but those derive from the symbol's USR and change when a signature changes. Return-type disambiguation does not help here — all six declare `-> ID`, and DocC's signature disambiguation does not reach into `where` clauses.
+- **Single backticks are code voice and carry no build risk.** Use them for any symbol you are merely naming rather than linking. This is why `Identifiable` and `ID` appear in single backticks in `IDFactory.swift`.
+- **Standard library symbols cannot be linked at all.** ``Identifiable`` fails with `doesn't exist at '/Utilities/IDFactory'`, and module qualification does not help — DocC reads ``Swift/Identifiable`` as a path *inside* this bundle (`/Utilities/Swift`). The build passes docc only this framework's symbol graph, so there is nothing else to resolve against. A plain Markdown link to `developer.apple.com` works if a link is genuinely wanted.
+- **Markdown works; HTML does not.** Headings, bold, italic, lists, fenced code blocks, thematic breaks, and GFM tables and strikethrough all render as proper nodes. Raw HTML is silently stripped — tags vanish, text survives, no warning. Blockquotes are silently promoted to Note asides.
+- **The enforcement is asymmetric.** A broken *internal* symbol link fails the build immediately; a broken *external* URL or malformed Markdown fails silently and forever. The build protects the links, not the prose.
+
 ## Testing
 
 The suite uses **swift-testing**, not XCTest — `import Testing`, `struct` suites, `@Test` functions, `#expect` macros. There is no `XCTestCase` anywhere and no `import XCTest`. New tests should follow suit. Use `try #require(...)` rather than force-unwrapping when a test needs to unwrap.
@@ -82,25 +104,35 @@ The target is still a `com.apple.product-type.bundle.unit-test` bundle, so the r
 
 | File | Suite | Purpose |
 |---|---|---|
-| `Tests/SerialNumberTests.swift` | `SerialNumberTests` | Behaviour of `SerialNumber` — uniqueness (serial and concurrent), copy propagation, creation order, custom conformers |
-| `Tests/SerialNumberAPITests.swift` | `SerialNumberAPITests` | That `SerialNumber`'s and `SerialNumberFactory`'s published API is reachable from another module |
+| `Tests/IDFactoryTests.swift` | `IDFactoryTests` | Behaviour of `IDFactory` — uniqueness (serial and concurrent), monotonicity, sentinel exclusion, reference sharing versus separate instances, all six widths, `UInt8` exhaustion |
+| `Tests/IDFactoryAPITests.swift` | `IDFactoryAPITests` | That `IDFactory`'s published API is reachable from another module |
+
+Each width needs its own test because `makeIdentifier()` is six concrete overloads rather than one generic method — no single generic helper can drive them all. The `UInt8` exhaustion test stops at `UInt8.max` deliberately: the next call computes 256 and traps, and a trap cannot be caught by the test runner, so that boundary is documented in a comment rather than exercised.
 
 **All use a plain `import Utilities`, and that is deliberate.** `@testable import` makes internal declarations visible, which defeats any check that the public surface is genuinely public: the since-removed `Weak` type was once `public` with an internal initializer and referent, and its behaviour tests passed anyway because `@testable` bypassed access control. So tests are written as client code by default. `@testable` is a per-file exception, permitted only where a test cannot otherwise reach what it needs, and the file using it should state why. Nothing needs it today.
 
 Access control is enforced at compile time, so an API regression **fails the build, not a test** — which is the point of doing it this way, not a shortcoming of it. A compile-time failure is unavoidable, arrives before any test runs, and cannot be skipped or forgotten. Prefer this kind of enforcement wherever the toolchain can provide it.
 
-Reverting `SerialNumber`'s `public init()` to `init()` yields `'SerialNumber<T>' initializer is inaccessible due to 'internal' protection level` at every construction site. Expect those errors in *both* test files, since both are clients; `SerialNumberAPITests` is where the intent is documented and where the whole published surface is covered deliberately, so that coverage cannot drift as the behaviour tests change.
+Reverting `IDFactory`'s `public init()` to `init()` yields `'IDFactory<ID>' initializer is inaccessible due to 'internal' protection level` at every construction site — 46 of them as of this writing. Expect those errors in *both* test files, since both are clients; `IDFactoryAPITests` is where the intent is documented and where the whole published surface is covered deliberately, so that coverage cannot drift as the behaviour tests change.
+
+That `public init()` exists **only** to be public. A public type's synthesized default initializer is `internal`, and there is no way to raise a synthesized initializer's access level in place, so the declaration must be written out. Its body is empty because the stored counter already carries its default value. Do not delete it as dead code.
 
 ## Consuming the framework
 
 The intended model is an **Xcode subproject**: a consumer adds `Utilities.xcodeproj` to its workspace and links the `Utilities.framework` product. There is deliberately no `Package.swift` — build settings stay solely in `Config/*.xcconfig`, which SPM would not honor.
 
-One constraint to know about: **deployment targets are 26.0 on every platform** (DriverKit 25.0), so a consumer must target macOS 26 / iOS 26 or later. Nothing in the current code requires that floor, so it could be lowered if a consumer ever needs it (`Atomic`, the earliest-available dependency, needs macOS 15).
+One constraint to know about: **deployment targets are 26.0 on every platform** (DriverKit 25.0), so a consumer must target macOS 26 / iOS 26 or later. Nothing in the current code requires that floor, so it could be lowered if a consumer ever needs it — but not below macOS 15, which is where both `Atomic` and `UInt128` become available.
 
 ## Toolchain floor
 
 Developed against Xcode 26.6 / Swift 6.3.3. No current source demands a newer compiler than the `SWIFT_VERSION = 6.0` language mode implies — but note that setting is the language *mode*, not a compiler version, so it would not surface such a demand if one appeared.
 
-## History: the removed `Weak` type
+## History: removed types
+
+### `SerialNumber`
+
+The project previously shipped `SerialNumber<T>` and the `SerialNumberFactory` protocol — a generic wrapper whose conformers generated their own values, with stock conformances for `UInt64` and Foundation's `UUID` (the latter under `#if canImport(Foundation)`, since the DriverKit SDK has no Foundation). `IDFactory` replaced it: the generation strategy moved out of the value type and into an explicit factory, which made the counter shareable and its uniqueness scope legible. Both `SerialNumber` test suites were removed with it.
+
+### `Weak`
 
 The project once shipped `Weak<T: AnyObject>`, a hashable weak-reference wrapper. Its first design hashed an `ObjectIdentifier` that outlived the referent, so a wrapper around a newly allocated object could collide with a stale wrapper whose referent's address had been recycled; its second design hashed a per-wrapper `SerialNumber<UInt64>`, which ended the collisions at the price of same-object deduplication (`Weak(x) == Weak(x)` became `false`). There was no way to preserve both properties, so the type was removed rather than kept limping. The standing conclusion: **question any use of weak references in contexts that do not natively support them** — a `Hashable` container is exactly such a context.
