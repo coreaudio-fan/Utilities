@@ -20,7 +20,7 @@ public final class IdentifierFactory<IDType: BinaryInteger & AtomicRepresentable
 	public typealias ID = IDType
 
 	/// A value of ID that indicates the absence of a value, like nil is for reference types.
-	@inlinable public static var sentinel: ID { get { 0 } }
+	@inlinable public static var sentinel: ID { 0 }
 
 	///	Use an atomic counter that is only ever incremented to be thread safe cheaply. This also guarantees that
 	///	makeIdentifier() returns a value that is not the sentinel, has never been returned before and wont be
