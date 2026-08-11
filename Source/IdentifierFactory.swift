@@ -1,23 +1,26 @@
 import Synchronization
 
-///	Provides unique identifiers of type `ID` that are suitable to implement `Identifiable`.
+///	Provides unique identifiers of type ID that are suitable to implement Identifiable<ID>.
 ///
-///	Because of the way `Atomic<Value>` is defined, explicit concrete specializations for `makeIdentifier()` are required
-///	as well. Note that this means that using an inappropriate type will be flagged by the compiler at the call site of
-///	`makeIdentifier()` rather than at a variable declaration like other constraints. In all cases, the overflow checking
+///	Because of the way Atomic<Value> is defined, explicit concrete specializations for makeIdentifier() are required as
+///	well. Note that this means that using an inappropriate type will be flagged by the compiler at the call site of
+///	makeIdentifier() rather than at a variable declaration like other constraints. In all cases, the overflow checking
 ///	with the addition is intended to terminate the program when triggered since such an occurence cannot be recovered
 ///	from and most likely indicates the presence of a bug somewere.
 ///
-///	Note that the `ID` values returned by an `IDFactory` are only unique to the specfic instance that provided them.
-///	This makes each instance essentially its own namespace for `ID` values. Keeping this straight is the
-///	responsibility of the user.
-public final class IDFactory<ID: UnsignedInteger & AtomicRepresentable & Sendable>: Sendable {
+///	Note that the ID values returned by an IdentifierFactory are only unique to the specfic instance that provided them.
+///	This makes each instance essentially its own namespace for ID values regardless of type. Keeping this straight is
+///	the responsibility of the user.
+public final class IdentifierFactory<IDType: UnsignedInteger & AtomicRepresentable & Sendable>: Sendable {
 
-	/// A value of `ID` that indicates the absence of a value, like `nil` is for reference types.
+	///	Type type of the identifiers
+	public typealias ID = IDType
+
+	/// A value of ID that indicates the absence of a value, like nil is for reference types.
 	@inlinable public static var sentinel: ID { get { 0 } }
 
 	///	Use an atomic counter that is only ever incremented to be thread safe cheaply. This also guarantees that
-	///	`makeIdentifier()` returns a value that is not the sentinel, has never been returned before and wont be
+	///	makeIdentifier() returns a value that is not the sentinel, has never been returned before and wont be
 	///	returned again.
 	private let previousID = Atomic<ID>(0)
 
@@ -46,4 +49,5 @@ public final class IDFactory<ID: UnsignedInteger & AtomicRepresentable & Sendabl
 	public func makeIdentifier() -> ID where ID == UInt128 {
 		previousID.add(1, ordering: .relaxed).newValue
 	}
+
 }
