@@ -37,8 +37,50 @@ struct IdentifierFactoryAPITests {
 		#expect(identifier == 1)
 	}
 
-	//	makeIdentifier() is six concrete overloads rather than one generic method, so each width is its own piece of
+	//	makeIdentifier() is 12 concrete overloads rather than one generic method, so each width is its own piece of
 	//	published API and needs its own reachability check.
+	@Test func clientCanGenerateAtSignedIntWidth() async throws {
+		let factory = IdentifierFactory<Int>()
+		let identifier: Int = factory.makeIdentifier()
+
+		#expect(identifier == 1)
+	}
+
+	@Test func clientCanGenerateAtSigned8BitWidth() async throws {
+		let factory = IdentifierFactory<Int8>()
+		let identifier: Int8 = factory.makeIdentifier()
+
+		#expect(identifier == 1)
+	}
+
+	@Test func clientCanGenerateAtSigned16BitWidth() async throws {
+		let factory = IdentifierFactory<Int16>()
+		let identifier: Int16 = factory.makeIdentifier()
+
+		#expect(identifier == 1)
+	}
+
+	@Test func clientCanGenerateAtSigned32BitWidth() async throws {
+		let factory = IdentifierFactory<Int32>()
+		let identifier: Int32 = factory.makeIdentifier()
+
+		#expect(identifier == 1)
+	}
+
+	@Test func clientCanGenerateAtSigned64BitWidth() async throws {
+		let factory = IdentifierFactory<Int64>()
+		let identifier: Int64 = factory.makeIdentifier()
+
+		#expect(identifier == 1)
+	}
+
+	@Test func clientCanGenerateAtSigned128BitWidth() async throws {
+		let factory = IdentifierFactory<Int128>()
+		let identifier: Int128 = factory.makeIdentifier()
+
+		#expect(identifier == 1)
+	}
+
 	@Test func clientCanGenerateAtUnsignedIntWidth() async throws {
 		let factory = IdentifierFactory<UInt>()
 		let identifier: UInt = factory.makeIdentifier()

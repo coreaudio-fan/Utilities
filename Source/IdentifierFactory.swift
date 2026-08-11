@@ -11,7 +11,10 @@ import Synchronization
 ///	Note that the ID values returned by an IdentifierFactory are only unique to the specfic instance that provided them.
 ///	This makes each instance essentially its own namespace for ID values regardless of type. Keeping this straight is
 ///	the responsibility of the user.
-public final class IdentifierFactory<IDType: UnsignedInteger & AtomicRepresentable & Sendable>: Sendable {
+///
+///	Implementations for sizes less than 32 are provided for completeness. It is highly recommened to use a 32 bit or
+///	larger type for ID to avoid running out of values prematurely which will terminate the program.
+public final class IdentifierFactory<IDType: BinaryInteger & AtomicRepresentable & Sendable>: Sendable {
 
 	///	Type type of the identifiers
 	public typealias ID = IDType
@@ -25,6 +28,30 @@ public final class IdentifierFactory<IDType: UnsignedInteger & AtomicRepresentab
 	private let previousID = Atomic<ID>(0)
 
 	public init() {}
+
+	public func makeIdentifier() -> ID where ID == Int {
+		previousID.add(1, ordering: .relaxed).newValue
+	}
+
+	public func makeIdentifier() -> ID where ID == Int8 {
+		previousID.add(1, ordering: .relaxed).newValue
+	}
+
+	public func makeIdentifier() -> ID where ID == Int16 {
+		previousID.add(1, ordering: .relaxed).newValue
+	}
+
+	public func makeIdentifier() -> ID where ID == Int32 {
+		previousID.add(1, ordering: .relaxed).newValue
+	}
+
+	public func makeIdentifier() -> ID where ID == Int64 {
+		previousID.add(1, ordering: .relaxed).newValue
+	}
+
+	public func makeIdentifier() -> ID where ID == Int128 {
+		previousID.add(1, ordering: .relaxed).newValue
+	}
 
 	public func makeIdentifier() -> ID where ID == UInt {
 		previousID.add(1, ordering: .relaxed).newValue
